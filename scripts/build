@@ -1,0 +1,89 @@
+#!/bin/bash
+
+set -eu
+
+ARCH=$(uname -m)
+
+usage() {
+    echo "$0 DISTRO [ARCH] [TARGET]"
+    echo
+    echo "Create a base development image"
+    echo
+    echo "DISTRO   distro to create [fedora, rhel]"
+    echo "ARCH     architecture of the machine (default HOST ARCH)"
+    echo "TARGET   target artifact (default build) [manifest, build]"
+    exit 1
+}
+
+case $# in
+    1)
+        distro="$1"
+        basearch="${ARCH}"
+        target="build"
+        ;;
+    2)
+        distro="$1"
+        basearch="$2"
+        target="build"
+        ;;
+    3)
+        distro="$1"
+        basearch="$2"
+        target="$3"
+        ;;
+    *)
+        usage
+esac
+
+if [[ "$basearch" == "arm64" ]]; then
+  basearch="aarch64"
+fi
+
+case "${target}" in
+  build) ;;
+  manifest) ;;
+  *)
+      usage
+esac
+
+# use image-builder from a vm
+BACKEND=(image-builder)
+
+# if we're not in a vm or a container, use podman
+if [[ ! ${CONTAINER_ID+x} ]]; then
+  BACKEND=(podman run --privileged \
+     -v ~/scratch/output:/output \
+     -v ./blueprints:/config \
+     ghcr.io/osbuild/image-builder-cli:latest
+  )
+fi
+
+case "${distro}" in
+  rhel)
+      # just build the latest rather than specific versions
+      sudo ${BACKEND[@]} \
+         "${target}" \
+         --distro "rhel-10.1" \
+         --arch "${basearch}" \
+         --blueprint /config/rhel.json \
+         --extra-repo https://mirror.stream.centos.org/10-stream/CRB/$basearch/os/ \
+         --extra-repo "https://download.copr.fedorainfracloud.org/results/faramirza/epel10/epel-10-${basearch}/" \
+         --extra-repo "https://download.copr.fedorainfracloud.org/results/atim/lazygit/epel-10-${basearch}/" \
+         --extra-repo "https://download.copr.fedorainfracloud.org/results/atim/starship/epel-10-${basearch}/" \
+         --extra-repo "https://dl.fedoraproject.org/pub/epel/10.1/Everything/${basearch}/" \
+         qcow2
+      ;;
+  fedora)
+      # just build the latest rather than specific versions
+      sudo ${BACKEND[@]} \
+         "${target}" \
+         --distro fedora-43 \
+         --arch "${basearch}" \
+         --blueprint /config/fedora.json \
+         --extra-repo "https://download.copr.fedorainfracloud.org/results/atim/lazygit/fedora-43-${basearch}/" \
+         --extra-repo "https://download.copr.fedorainfracloud.org/results/atim/starship/fedora-43-${basearch}/" \
+         qcow2
+      ;;
+  *)
+      usage
+esac
