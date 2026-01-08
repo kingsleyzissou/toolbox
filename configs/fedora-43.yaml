@@ -1,0 +1,48 @@
+arch: "aarch64"
+
+images:
+  - location: "~/scratch/VMs/fedora-43.aarch64.qcow2"
+    arch: "aarch64"
+
+mountType: virtiofs
+
+mounts:
+  - location: "~/Projects"
+    writable: true
+  - location: "~/scratch/output"
+    mountPoint: "/output"
+    writable: true
+  - location: "~/Projects/toolbox/blueprints/"
+    mountPoint: "/config"
+    writable: true
+  - location: "~/.ssh"
+    mountPoint: "/mnt/ssh"
+    writable: false
+
+portForwards:
+  - guestPort: 9090
+    hostPort: 9090
+
+containerd:
+  system: false
+  user: false
+
+env:
+  # this is just a small convenience to ignore some zsh configs
+  CONTAINER_ID: "lima"
+  ZDOTDIR: "/home/zissou.linux/.config/zsh"
+
+provision:
+  - mode: system
+    script: usermod -aG wheel zissou
+
+  - mode: system
+    # this was causing loads of issues
+    script: setenforce 0
+
+  - mode: user
+    script: |
+      cp /mnt/ssh/mini ~/.ssh/.
+      cp /mnt/ssh/mini.pub ~/.ssh/.
+      git clone https://github.com/kingsleyzissou/.dotfiles.git
+      cd .dotfiles && git checkout containers && stow . && rm ~/.zshrc
