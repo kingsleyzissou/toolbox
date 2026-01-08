@@ -1,0 +1,145 @@
+{
+  "name": "osbuild",
+  "description": "osbuild developer image",
+  "version": "0.0.1",
+  "modules": [],
+  "groups": [],
+  "customizations": {
+    "hostname": "lima-fedora",
+    "timezone": {
+      "timezone": "Europe/Dublin"
+    },
+    "services": {
+      "enabled": [
+        "cockpit.socket",
+        "osbuild-composer.socket"
+      ]
+    },
+    "files": [
+      {
+        "path": "/etc/pam.d/cockpit",
+        "mode": "0644",
+        "user": "root",
+        "group": "root",
+        "data": "\n auth       required   pam_sepermit.so\n auth       include    system-auth\n account    include    system-auth\n session    include    system-auth\n"
+      },
+      {
+        "path": "/etc/sudoers.d/wheel-nopassword",
+        "mode": "0644",
+        "user": "root",
+        "group": "root",
+        "data": "$wheel        ALL=(ALL)       NOPASSWD: ALL"
+      }
+    ]
+  },
+  "packages": [
+    {
+      "name": "bat"
+    },
+    {
+      "name": "buildah"
+    },
+    {
+      "name": "cockpit"
+    },
+    {
+      "name": "fastfetch"
+    },
+    {
+      "name": "fzf"
+    },
+    {
+      "name": "gcc"
+    },
+    {
+      "name": "gh"
+    },
+    {
+      "name": "git"
+    },
+    {
+      "name": "go"
+    },
+    {
+      "name": "gpgme-devel"
+    },
+    {
+      "name": "image-builder"
+    },
+    {
+      "name": "jq"
+    },
+    {
+      "name": "krb5-devel"
+    },
+    {
+      "name": "lazygit"
+    },
+    {
+      "name": "libassuan-devel"
+    },
+    {
+      "name": "luarocks"
+    },
+    {
+      "name": "make"
+    },
+    {
+      "name": "neovim"
+    },
+    {
+      "name": "nodejs"
+    },
+    {
+      "name": "npm"
+    },
+    {
+      "name": "openssl"
+    },
+    {
+      "name": "osbuild"
+    },
+    {
+      "name": "osbuild-composer"
+    },
+    {
+      "name": "podman"
+    },
+    {
+      "name": "podman"
+    },
+    {
+      "name": "python3"
+    },
+    {
+      "name": "python3-pip"
+    },
+    {
+      "name": "ripgrep"
+    },
+    {
+      "name": "rpm-build"
+    },
+    {
+      "name": "skopeo"
+    },
+    {
+      "name": "starship"
+    },
+    {
+      "name": "stow"
+    },
+    {
+      "name": "tmux"
+    },
+    {
+      "name": "vim"
+    },
+    {
+      "name": "zoxide"
+    },
+    {
+      "name": "zsh"
+    }
+  ]
+}
