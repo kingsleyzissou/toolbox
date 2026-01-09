@@ -1,0 +1,53 @@
+#!/bin/bash
+
+set -eu
+
+ARCH=$(uname -m)
+DISK_IMAGE="/Users/zissou/scratch/VMs/disk.qcow2"
+BIOS_PATH="/Users/zissou/scratch/qemu/QEMU_EFI.fd"
+RAM="4G"
+CPUS="4"
+
+usage() {
+    echo "$0 ISO [ARCH]"
+    echo
+    echo "Boot an iso image"
+    echo
+    echo "ISO      iso image to boot"
+    echo "ARCH     architecture of the machine (default HOST ARCH)"
+    exit 1
+}
+
+if [[ "$ARCH" == "arm64" ]]; then
+  ARCH="aarch64"
+fi
+
+case $# in
+    1)
+        iso="$1"
+        arch="${ARCH}"
+        ;;
+    2)
+        iso="$1"
+        arch="$2"
+        ;;
+    *)
+        usage
+esac
+
+# Create disk image if it doesn't exist
+if [ ! -f "$DISK_IMAGE" ]; then
+  qemu-img create -f qcow2 "$DISK_IMAGE" 20G
+fi
+
+qemu-system-${arch} \
+  -machine virt,accel=hvf \
+  -cpu host \
+  -smp "${CPUS}" \
+  -m "${RAM}" \
+  -bios "${BIOS_PATH}" \
+  -drive file="${DISK_IMAGE}",format=qcow2,if=virtio \
+  -cdrom "${iso}" \
+  -nographic \
+  -device virtio-net,netdev=net0 \
+  -netdev user,id=net0,hostfwd=tcp::2222-:22
