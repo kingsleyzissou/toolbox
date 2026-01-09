@@ -1,0 +1,13 @@
+images:
+  - location: ~/scratch/VMs/disk.qcow2
+
+cpus: 4
+memory: 4GiB
+disk: 10GiB
+
+containerd:
+  system: false
+  user: false
+
+mounts: []
+provision: []
