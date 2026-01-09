@@ -48,6 +48,34 @@ provision:
       cpanm Test::Output
       ./configure && make && make install
 
+  - mode: system
+    script: |
+      # neovim is not recent enough, so install from source
+      dnf remove -y neovim
+      cd /tmp
+      curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-arm64.tar.gz
+      tar xf nvim-linux-arm64.tar.gz && cd nvim-linux-arm64
+      install -m 755 ./bin/nvim /usr/bin
+      install -d -m 755 /usr/lib/nvim/parser
+      install -m 755 ./lib/nvim/parser/*.so /usr/lib/nvim/parser
+
+      DESTDIR=${DESTDIR:-}
+      PREFIX=${PREFIX:-/usr}
+
+      SRC_DIR="./share/nvim/runtime"
+      DEST_DIR="$DESTDIR$PREFIX/share/nvim/runtime"
+
+      find "$SRC_DIR" -type d -print0 | while IFS= read -r -d '' dir; do
+          # Map source directory to destination
+          dest="$DEST_DIR/${dir#$SRC_DIR/}"
+          install -d -m 755 "$dest"
+      done
+
+      find "$SRC_DIR" -type f -print0 | while IFS= read -r -d '' file; do
+          dest="$DEST_DIR/${file#$SRC_DIR/}"
+          install -m 755 "$file" "$dest"
+      done
+
   - mode: user
     script: |
       cp /mnt/ssh/mini ~/.ssh/.
