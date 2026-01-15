@@ -3,7 +3,7 @@ images:
 
 cpus: 4
 memory: 4GiB
-disk: 10GiB
+disk: 20GiB
 
 containerd:
   system: false
