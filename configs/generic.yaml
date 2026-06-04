@@ -1,13 +1,18 @@
 images:
   - location: ~/scratch/VMs/disk.qcow2
 
-cpus: 4
-memory: 4GiB
-disk: 20GiB
+cpus: 6
+memory: 16GiB
+disk: 30GiB
 
 containerd:
   system: false
   user: false
 
-mounts: []
+mountType: virtiofs
+mounts:
+  - location: "~/scratch/output"
+    mountPoint: "/output"
+    writable: true
+
 provision: []
