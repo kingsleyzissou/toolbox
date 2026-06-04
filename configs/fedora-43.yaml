@@ -12,7 +12,7 @@ mounts:
   - location: "~/scratch/output"
     mountPoint: "/output"
     writable: true
-  - location: "~/Projects/toolbox/blueprints/"
+  - location: "~/Projects/play/toolbox/blueprints/"
     mountPoint: "/config"
     writable: true
   - location: "~/.ssh"
