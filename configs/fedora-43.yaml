@@ -14,9 +14,6 @@ mounts:
     writable: true
   - location: "~/Projects/play/toolbox/blueprints/"
     mountPoint: "/config"
-    writable: true
-  - location: "~/.ssh"
-    mountPoint: "/mnt/ssh"
     writable: false
 
 portForwards:
@@ -42,7 +39,5 @@ provision:
 
   - mode: user
     script: |
-      cp /mnt/ssh/mini ~/.ssh/.
-      cp /mnt/ssh/mini.pub ~/.ssh/.
       git clone https://github.com/kingsleyzissou/.dotfiles.git
       cd .dotfiles && git checkout containers && stow . && rm ~/.zshrc
