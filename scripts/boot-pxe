@@ -1,0 +1,75 @@
+#!/bin/bash
+
+set -eu
+
+ARCH=$(uname -m)
+BIOS_PATH="/Users/zissou/scratch/qemu/QEMU_EFI.fd"
+RAM="3G"
+CPUS="4"
+HTTP_PORT="8080"
+
+usage() {
+    echo "$0 PXE_TAR [ARCH]"
+    echo
+    echo "Boot a PXE tar.xz image"
+    echo
+    echo "PXE_TAR  pxe tar archive to boot"
+    echo "ARCH     architecture of the machine (default HOST ARCH)"
+    exit 1
+}
+
+if [[ "$ARCH" == "arm64" ]]; then
+  ARCH="aarch64"
+fi
+
+case $# in
+    1)
+        pxe_tar="$1"
+        arch="${ARCH}"
+        ;;
+    2)
+        pxe_tar="$1"
+        arch="$2"
+        ;;
+    *)
+        usage
+esac
+
+# Create temp directory and ensure cleanup
+TMPDIR=$(mktemp -d)
+cleanup() {
+    echo "Cleaning up..."
+    [[ -n "${HTTP_PID:-}" ]] && kill "$HTTP_PID" 2>/dev/null || true
+    rm -rf "$TMPDIR"
+}
+trap cleanup EXIT
+
+# Extract PXE tar
+echo "Extracting $pxe_tar..."
+tar -xf "$pxe_tar" -C "$TMPDIR"
+
+# Start HTTP server
+echo "Starting HTTP server on port $HTTP_PORT..."
+python3 -m http.server "$HTTP_PORT" --directory "$TMPDIR" &>/dev/null &
+HTTP_PID=$!
+sleep 1
+
+# Determine console device
+if [[ "$arch" == "aarch64" ]]; then
+    CONSOLE="ttyAMA0"
+else
+    CONSOLE="ttyS0"
+fi
+
+# Boot with QEMU
+echo "Booting QEMU (${arch})..."
+qemu-system-${arch} \
+  -machine virt,accel=hvf \
+  -cpu host \
+  -smp "${CPUS}" \
+  -m "${RAM}" \
+  -bios "${BIOS_PATH}" \
+  -nographic \
+  -kernel "$TMPDIR/vmlinuz" \
+  -initrd "$TMPDIR/initrd.img" \
+  -append "rd.live.image root=live:http://10.0.2.2:${HTTP_PORT}/rootfs.img console=${CONSOLE} systemd.unit=multi-user.target"

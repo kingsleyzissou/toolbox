@@ -1,0 +1,14 @@
+#!/bin/bash
+
+qemu-system-aarch64 \
+  -M virt,highmem=off \
+  -accel hvf \
+  -cpu host \
+  -smp 4 \
+  -m 3000 \
+  -bios /Users/zissou/scratch/qemu/QEMU_EFI.fd \
+  -device virtio-net-pci,netdev=net0,mac=FE:0B:6E:22:3D:00 \
+  -netdev user,id=net0,net=10.0.2.0/24,hostfwd=tcp::2223-:22 \
+  -device virtio-gpu-pci \
+  -nographic \
+  -drive file=${1},format=qcow2,if=virtio,cache=writethrough
