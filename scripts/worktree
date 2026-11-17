@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+  echo "Usage:"
+  echo  "  wt add <branch> [--base <ref>]"
+  echo  "  wt remove <branch>"
+  echo "  wt list [git worktree list options]"
+  echo  "  wt clone [--remote <name>] [--add-remote <name> <url>]... <url> [directory]"
+  echo ""
+  echo "Run add and remove from the bare repository root."
+}
+
+die() {
+    echo "wt: $*" >&2
+    exit 1
+}
+
+require_bare_repo() {
+    [[ "$(git rev-parse --is-bare-repository 2>/dev/null || true)" == true ]] \
+        || die "run this command from the bare repository root"
+}
+
+check_branch() {
+    git check-ref-format --branch "$1" >/dev/null \
+        || die "invalid branch name: $1"
+}
+
+add_worktree() {
+    [[ $# -ge 1 ]] || { usage >&2; exit 2; }
+
+    local branch=$1
+    local base=""
+    local default_branch remote
+    shift
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --base)
+                [[ $# -ge 2 ]] || die "--base requires a ref"
+                base=$2
+                shift 2
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            *)
+                die "unknown add option: $1"
+                ;;
+        esac
+    done
+
+    check_branch "$branch"
+    require_bare_repo
+
+    default_branch=$(git symbolic-ref --quiet --short HEAD) \
+        || die "bare repository HEAD does not point to a branch"
+    remote=$(git config --get "branch.${default_branch}.remote" || true)
+    if [[ -z "$remote" || "$remote" == "." ]]; then
+        remote=upstream
+    fi
+    base=${base:-"${remote}/${default_branch}"}
+
+    git rev-parse --verify --quiet "${base}^{commit}" >/dev/null \
+        || die "base ref not found: $base"
+
+    git worktree add -b "$branch" "$branch" "$base"
+}
+
+remove_worktree() {
+    [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+
+    local branch=$1
+    local worktree_branch default_branch
+    check_branch "$branch"
+    require_bare_repo
+
+    default_branch=$(git symbolic-ref --quiet --short HEAD || true)
+    [[ "$branch" != "$default_branch" ]] || die "refusing to remove the bare repository's default branch"
+
+    worktree_branch=$(git -C "$branch" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+    [[ "$worktree_branch" == "$branch" ]] \
+        || die "no worktree at '$branch' is checked out on branch '$branch'"
+
+    git worktree remove -- "$branch"
+    git branch -D -- "$branch"
+}
+
+validate_remote_name() {
+    git check-ref-format "refs/remotes/$1" >/dev/null \
+        || die "invalid remote name: $1"
+}
+
+clone_bare() {
+    local primary=upstream
+    local -a extra_names=() extra_urls=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --remote)
+                [[ $# -ge 2 ]] || die "--remote requires a name"
+                primary=$2
+                shift 2
+                ;;
+            --add-remote)
+                [[ $# -ge 3 ]] || die "--add-remote requires a name and URL"
+                extra_names+=("$2")
+                extra_urls+=("$3")
+                shift 3
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            --)
+                shift
+                break
+                ;;
+            -* )
+                die "unknown clone option: $1"
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+
+    [[ $# -ge 1 && $# -le 2 ]] || { usage >&2; exit 2; }
+
+    local url=$1
+    local target=${2:-}
+    local repo_name default_branch bare_dir name i j
+
+    validate_remote_name "$primary"
+    if [[ ${#extra_names[@]} -gt 0 ]]; then
+        for name in "${extra_names[@]}"; do
+            validate_remote_name "$name"
+            [[ "$name" != "$primary" ]] || die "duplicate remote name: $name"
+        done
+    fi
+    for ((i = 0; i < ${#extra_names[@]}; i++)); do
+        for ((j = 0; j < i; j++)); do
+            [[ "${extra_names[i]}" != "${extra_names[j]}" ]] \
+                || die "duplicate remote name: ${extra_names[i]}"
+        done
+    done
+
+    if [[ -z "$target" ]]; then
+        repo_name=${url%/}
+        repo_name=${repo_name##*/}
+        repo_name=${repo_name%.git}
+        [[ -n "$repo_name" ]] || die "could not determine a directory name from URL"
+        target=$repo_name
+    fi
+    [[ "$target" == /* ]] || target="$PWD/$target"
+
+    git clone --bare --origin "$primary" -- "$url" "$target"
+    cd -- "$target"
+    bare_dir=$PWD
+
+    git config "remote.${primary}.fetch" "+refs/heads/*:refs/remotes/${primary}/*"
+    git fetch "$primary"
+
+    for ((i = 0; i < ${#extra_names[@]}; i++)); do
+        name=${extra_names[i]}
+        git remote add "$name" "${extra_urls[i]}"
+        git config "remote.${name}.fetch" "+refs/heads/*:refs/remotes/${name}/*"
+        git fetch "$name"
+    done
+
+    default_branch=$(git symbolic-ref --quiet --short HEAD) \
+        || die "remote does not advertise a default branch"
+    git show-ref --quiet --verify "refs/heads/${default_branch}" \
+        || die "default branch not found after clone: $default_branch"
+
+    git worktree add "$default_branch" "$default_branch"
+    git config "branch.${default_branch}.remote" "$primary"
+    git config "branch.${default_branch}.merge" "refs/heads/${default_branch}"
+
+    echo "Bare repository: $bare_dir"
+    echo "Default worktree: $bare_dir/$default_branch"
+}
+
+[[ $# -gt 0 ]] || { usage >&2; exit 2; }
+command=$1
+shift
+
+case "$command" in
+    add) add_worktree "$@" ;;
+    remove) remove_worktree "$@" ;;
+    list) git worktree list "$@" ;;
+    clone) clone_bare "$@" ;;
+    -h|--help) usage ;;
+    *) usage >&2; die "unknown command: $command" ;;
+esac
