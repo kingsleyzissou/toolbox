@@ -3,8 +3,15 @@
 set -eu
 
 ARCH=$(uname -m)
-DISK_IMAGE="/Users/zissou/scratch/VMs/disk.qcow2"
-BIOS_PATH="/Users/zissou/scratch/qemu/QEMU_EFI.fd"
+STORAGE_ROOT="$HOME/scratch"
+if [[ ! -d "$STORAGE_ROOT" || ! -w "$STORAGE_ROOT" ]]; then
+  STORAGE_ROOT=/scratch
+fi
+if [[ ! -d "$STORAGE_ROOT" || ! -w "$STORAGE_ROOT" ]]; then
+  STORAGE_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/toolbox"
+fi
+DISK_IMAGE="$STORAGE_ROOT/VMs/disk.qcow2"
+BIOS_PATH="$STORAGE_ROOT/qemu/QEMU_EFI.fd"
 RAM="4G"
 CPUS="4"
 
@@ -35,7 +42,13 @@ case $# in
         usage
 esac
 
+if [[ ! -f "$BIOS_PATH" ]]; then
+  echo "QEMU firmware not found: $BIOS_PATH" >&2
+  exit 1
+fi
+
 # Create disk image if it doesn't exist
+mkdir -p "$(dirname "$DISK_IMAGE")"
 if [ ! -f "$DISK_IMAGE" ]; then
   qemu-img create -f qcow2 "$DISK_IMAGE" 20G
 fi
