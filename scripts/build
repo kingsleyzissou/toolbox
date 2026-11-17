@@ -51,9 +51,18 @@ BACKEND=(image-builder)
 
 # if we're not in a vm or a container, use podman
 if [[ ! ${CONTAINER_ID+x} ]]; then
+  BLUEPRINTS_DIR=./blueprints
+  if [[ ! -d "$BLUEPRINTS_DIR" ]]; then
+    BLUEPRINTS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/toolbox/blueprints"
+  fi
+  if [[ ! -d "$BLUEPRINTS_DIR" ]]; then
+    echo "Blueprints directory not found: $BLUEPRINTS_DIR" >&2
+    exit 1
+  fi
+
   BACKEND=(podman run --privileged \
      -v ~/scratch/output:/output \
-     -v ./blueprints:/config \
+     -v "${BLUEPRINTS_DIR}:/config" \
      ghcr.io/osbuild/image-builder-cli:latest
   )
 fi
@@ -61,7 +70,7 @@ fi
 case "${distro}" in
   rhel)
       # just build the latest rather than specific versions
-      sudo ${BACKEND[@]} \
+      sudo "${BACKEND[@]}" \
          "${target}" \
          --distro "rhel-10.1" \
          --arch "${basearch}" \
@@ -75,7 +84,7 @@ case "${distro}" in
       ;;
   fedora)
       # just build the latest rather than specific versions
-      sudo ${BACKEND[@]} \
+      sudo "${BACKEND[@]}" \
          "${target}" \
          --distro fedora-43 \
          --arch "${basearch}" \

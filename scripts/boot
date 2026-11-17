@@ -1,12 +1,25 @@
 #!/bin/bash
 
+STORAGE_ROOT="$HOME/scratch"
+if [[ ! -d "$STORAGE_ROOT" || ! -w "$STORAGE_ROOT" ]]; then
+  STORAGE_ROOT=/scratch
+fi
+if [[ ! -d "$STORAGE_ROOT" || ! -w "$STORAGE_ROOT" ]]; then
+  STORAGE_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/toolbox"
+fi
+BIOS_PATH="$STORAGE_ROOT/qemu/QEMU_EFI.fd"
+if [[ ! -f "$BIOS_PATH" ]]; then
+  echo "QEMU firmware not found: $BIOS_PATH" >&2
+  exit 1
+fi
+
 qemu-system-aarch64 \
   -M virt,highmem=off \
   -accel hvf \
   -cpu host \
   -smp 4 \
   -m 3000 \
-  -bios /Users/zissou/scratch/qemu/QEMU_EFI.fd \
+  -bios "$BIOS_PATH" \
   -device virtio-net-pci,netdev=net0,mac=FE:0B:6E:22:3D:00 \
   -netdev user,id=net0,net=10.0.2.0/24,hostfwd=tcp::2223-:22 \
   -device virtio-gpu-pci \

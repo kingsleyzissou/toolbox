@@ -3,7 +3,14 @@
 set -eu
 
 ARCH=$(uname -m)
-BIOS_PATH="/Users/zissou/scratch/qemu/QEMU_EFI.fd"
+STORAGE_ROOT="$HOME/scratch"
+if [[ ! -d "$STORAGE_ROOT" || ! -w "$STORAGE_ROOT" ]]; then
+  STORAGE_ROOT=/scratch
+fi
+if [[ ! -d "$STORAGE_ROOT" || ! -w "$STORAGE_ROOT" ]]; then
+  STORAGE_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/toolbox"
+fi
+BIOS_PATH="$STORAGE_ROOT/qemu/QEMU_EFI.fd"
 RAM="3G"
 CPUS="4"
 HTTP_PORT="8080"
@@ -34,6 +41,11 @@ case $# in
     *)
         usage
 esac
+
+if [[ ! -f "$BIOS_PATH" ]]; then
+    echo "QEMU firmware not found: $BIOS_PATH" >&2
+    exit 1
+fi
 
 # Create temp directory and ensure cleanup
 TMPDIR=$(mktemp -d)
